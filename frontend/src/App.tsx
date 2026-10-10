@@ -1,3 +1,19 @@
+import { useEffect } from "react";
+import { Board } from "./board/Board";
+import { Toolbar } from "./board/Toolbar";
+import { initRuntime } from "./controller";
+
 export function App() {
-  return <div className="app">Figr viewer</div>;
+  useEffect(() => {
+    initRuntime();
+  }, []);
+
+  return (
+    <div className="app">
+      <Toolbar />
+      <div className="workspace">
+        <Board />
+      </div>
+    </div>
+  );
 }
