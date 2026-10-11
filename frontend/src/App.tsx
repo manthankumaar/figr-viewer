@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Board } from "./board/Board";
+import { OverlayLayer } from "./board/OverlayLayer";
 import { Toolbar } from "./board/Toolbar";
 import { initRuntime } from "./controller";
 
@@ -14,6 +15,7 @@ export function App() {
       <div className="workspace">
         <Board />
       </div>
+      <OverlayLayer />
     </div>
   );
 }
