@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from "react";
-import { clearInspectorThrow } from "../controller";
+import { clearInspectorThrow, retryDetails } from "../controller";
 import { RegionError } from "../RegionError";
 import { reportFailure } from "../regions";
 import { getApp, useApp } from "../store";
@@ -45,6 +45,7 @@ function InspectorBody() {
 
   const selection = useApp((s) => s.selection);
   const liveById = useApp((s) => s.liveById);
+  const details = useApp((s) => s.details);
 
   if (!selection) {
     return <p className="empty">Select an element</p>;
@@ -63,6 +64,27 @@ function InspectorBody() {
       {lives.length
         ? liveFields(lives).map(([k, v, color]) => <Field key={k} k={k} v={v} color={color} />)
         : <p className="empty" style={{ paddingLeft: 0 }}>Waiting for live values…</p>}
+      {!multi && (
+        <>
+          <h3>Details</h3>
+          {details.status === "loading" && <p className="connecting">Loading…</p>}
+          {details.status === "none" && <p className="empty" style={{ paddingLeft: 0 }}>No details</p>}
+          {details.status === "none-404" && (
+            <p className="empty" style={{ paddingLeft: 0 }}>No details for this element</p>
+          )}
+          {details.status === "error" && (
+            <RegionError message={details.error || "Couldn't load details"} onRetry={() => retryDetails()} />
+          )}
+          {details.status === "ready" && details.data && (
+            <>
+              <Field k="Component" v={details.data.component} />
+              <Field k="Description" v={details.data.description} />
+              <Field k="Status" v={details.data.status} />
+              <Field k="Owner" v={details.data.owner} />
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }
