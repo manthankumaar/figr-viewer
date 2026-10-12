@@ -73,3 +73,39 @@ Timeouts: handshake 10s (that preview only), `getChildren` 3s (that row only). C
 - If the script never answers, that preview shows “Couldn't connect to this preview”.
 - Navigation loads a new document; the new page's own `bridge.js` hellos; the host bumps `generation` and ignores the old session.
 - A response after Retry remounted the iframe is ignored.
+
+## Ambiguities and what we decided
+
+- **Unkeyed nodes replaced via `innerHTML`:** dropped from the selection, never rematched by index or text. Inspector: “This element no longer exists” if nothing remains.
+- **Interact mode keys:** V/I/Escape still switch/clear unless the user is typing in an input. Enter/Tab go to the page. Select-mode Tab/Enter navigate the selection.
+- **Search box:** V/I are not stolen while it is focused, so you can type those letters. Escape clears the query first, then the selection.
+- **Clicking a screen name** activates that preview and loads its layers; it does not clear the selection and is not a page hit.
+- **`script` / `style` in `body`** are elements and appear in the tree (R2: every element except `html`/`body`).
+- **Clearing search** restores the expanded set from before the search. A row selected during search may sit inside a collapsed ancestor afterwards; the preview selection stays. Hover/selection in the panel then highlight the nearest visible ancestor (same rule as R4.4).
+- **Page errors** (unhandled exception / rejection) are a badge on that preview, not the “Couldn't connect” overlay. They still call `report()` once with `region: "preview"`.
+- **Layers keyboard vs Tab:** with the layers tree focused, arrows/left/right move in the tree; Tab still does sibling selection (R3) rather than moving focus.
+
+## Where this breaks
+
+- **Unkeyed identity after a full DOM rebuild** (page 4 even-numbered rows): the selected node is gone; we will not jump to the new node in the same slot.
+- **Duplicate `data-key` values** on one page would share one id; the fixtures don't do this.
+- **Very deep expand + search on page 5** can produce a large DOM in the layers panel (the guest walk is fine; rendering every match is the cost).
+- **24 live iframes** are heavy. First load can hitch; browsers may throttle background iframes so hover/rects on offscreen previews update less often.
+- **Transformed/fixed elements and visual vs layout boxes:** we use `getBoundingClientRect`. Sticky headers are handled by `elementsFromPoint` (topmost pixel wins). We do not reconstruct CSS transform chains beyond that.
+- **Ctrl+wheel over a preview in Interact mode** depends on the guest's non-passive listener. If a page called `stopPropagation` on `wheel` in capture before us, board zoom would not run. The fixtures don't.
+- **Host overlay vs native hover inside the page:** `:hover` styles in Select mode won't apply, because the pointer never enters the iframe. Interact mode restores them.
+- **Iframe `load` + `hello` race** is tolerated by retrying hello; a custom browser that dropped `postMessage` to a not-yet-listening parent for longer than 10s would show a connect error (Retry works).
+
+## Layout of the code
+
+```
+frontend/src/
+  controller.ts    protocol, selection, layers, failures
+  store.ts         Zustand
+  camera.ts / overlay.ts   high-frequency
+  board/           pan/zoom, previews, screen-space outlines
+  layers/          lazy tree, search, keyboard
+  inspector/       live + details, error boundary
+  regions.ts       report-once + cancellation
+backend/pages/bridge.js   the one guest script
+```
